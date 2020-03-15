@@ -1,0 +1,179 @@
+---
+title: "Normal Distribution MGT585"
+author: "Gilbert King "
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+In this lab we'll investigate the probability distribution that is most central
+to statistics: the normal distribution.  If we are confident that our data are 
+nearly normal, that opens the door to many powerful statistical methods.  Here 
+we'll use the graphical tools of R to assess the normality of our data and also 
+learn how to generate random numbers from a normal distribution.
+
+## The Data
+
+We will be working with measurements of body dimensions.  This data set 
+contains measurements from 247 men and 260 women, most of whom were considered 
+healthy young adults.
+
+```{r get-data}
+# the following statement will go to the web, retrieve our data, and load into our working environment
+download.file("http://www.openintro.org/stat/data/bdims.RData", destfile = "bdims.RData")
+load("bdims.RData")
+```
+
+
+```{r load-libraries, message=FALSE}
+# the tidyverse library contains several useful libraries (ggplot2, dplyr, readr, tidyr) we will use to analyze and manipulate our data set
+library(tidyverse)
+```
+
+Let's take a quick look at the data using the *glimpse* function.
+
+```{r view-data}
+glimpse(bdims)
+```
+
+You'll see that for every observation we have 25 variables, many of which are
+either diameters or girths.  A key to the variable names can be found at 
+[https://www.openintro.org/data/index.php?data=bdims](https://www.openintro.org/data/index.php?data=bdims), but we'll be focusing on just three columns to get started: weight in kg (`wgt`), height in cm (`hgt`), and `sex` (`1` indicates male, `0` indicates female).
+
+Since males and females tend to have different body dimensions, it will be 
+useful to create two additional data sets: one with only men and another with 
+only women.  We will use the *pipe* operator `%>%` which passes the thing before the pipe to the thing after the pipe. With the *pipe* you can apply a sequence of actions to a dataset. For this dataset, we will pass our dataframe, bdims, to the dplyr *filter* command and filter the data on sex to create a male and female version of the original dataset.
+
+```{r male-female}
+mdims_tidy <- bdims %>% filter(sex == 1)
+fdims_tidy <- bdims %>% filter(sex ==0)
+```
+
+Lets calculate summary statistics using *summary()* for the male and female datasets. 
+```{r gender-dimentions-summary}
+summary(mdims_tidy$hgt)
+summary(fdims_tidy$hgt)
+summary(mdims_tidy$wgt)
+summary(fdims_tidy$wgt)
+```
+
+While you could apply summary to the entire dataframe with _summary(mdims)_ and receive a six statistics summary, let's apply a very powerful summary function called *skim()* from the *skimr* package.  You will first need to install the package using install.packages("skimr"). Once installed, you can activate the package with the library(skimr).
+```{r skim-example}
+library(skimr)
+skim(mdims_tidy)
+```
+
+Notice that the output from the *skim(mdims_tidy)* command is a nicely output summarizing the number of rows and columns(247, 25), the different data types (factor and numeric), and a formated table. The table provides each variable name followed by the number of values missing, the complete rate (missing / total observations), the mean, the standard deviation, p0 (the min value), p25 (25th percentile), p50 (the 50th percentile aka the median), p75 (75th percentile -subtract p25 for the IQR, interquartile range) and p100 (the maximum value).  The final column is a histogram image for that variable.
+
+### Which variable in the mdims dataset is clearly __not__ normally distributed?
+Option 22 of the mdims dataset is CLEARLY not normally distributed. (age dataset)
+
+## Is a Picture Worth a Thousand Words?
+Yes. A picture certianly is worht a thousand word. 
+
+Make a histogram of heights `hgt` for both men and women.  Use the examples of histograms for weight `wgt` as a guide to create a histogram for .
+
+```{r visuals-histograms-wgt}
+hist(mdims_tidy$wgt)
+hist(fdims_tidy$wgt)
+```
+
+Edit the R chunk below with the variable for height and create height histograms for men and women
+
+```{r visuals-histograms-hgt}
+#replace age with the variable for height.  Look above at the skim() if you don't know the variable for height.
+hist(mdims_tidy$hgt)
+hist(fdims_tidy$hgt)
+```
+
+## Answer the following questions for height:
+
+1.  Which gender has more height observationsThe male gender  > 170 cm?
+        The male gender. 
+2.  Is the distribution of weights unimodal?
+        The male gender is unimodal, but the female gender is not. 
+3.  Is the distribution symetric about the mean height?
+        No. 
+4.  True or False: Is the mean height of woman > 169 cm?
+        True. 
+
+These basic histogram plots help but would be more helpful if viewed on the same plot.  For this combined view we will use ggplot2 and the original dataframe `bdims`
+```{r better-visuals-wgt}
+ggplot(bdims, aes(x = wgt, fill = sex)) + geom_histogram(binwidth = 5, position = "identity", alpha = .5, color = "grey") + scale_fill_manual(values=c("purple", "orange"))
+```
+
+```{r better-visuals-hgt}
+ggplot(bdims, aes(x = hgt, fill = sex)) + geom_histogram(binwidth = 5, position = "identity", alpha = .5, color = "grey") + scale_fill_manual(values=c("green", "brown"))
+```
+
+## Answer the following questions regarding the combined histogram chart:
+
+1.  TRUE or FALSE: most men and women fall within 20 cm of each other?
+        True. 
+2.  Which gender exhibits more variance in weight?
+        Men. 
+
+To learn more about histogram visuals visit: 
+checkout [http://www.cookbook-r.com/Graphs/Plotting_distributions_(ggplot2)/]( http://www.cookbook-r.com/Graphs/Plotting_distributions_(ggplot2)/)
+
+
+## The Normal Distribution
+
+In your description of the distributions, did you use words like *bell-shaped* 
+or *normal*?  It's tempting to say so when faced with a unimodal symmetric 
+distribution.
+
+To see how accurate that description is, we can plot a normal distribution curve 
+on top of a histogram to see how closely the data follow a normal distribution. 
+This normal curve should have the same mean and standard deviation as the data. 
+
+Next we overlay a histogram with a normal probability curve with the `stat_function` in ggplot2. We use a density histogram which forces the area of the columns to equal a value of 1 just as the area under the normal probability curve.  The commands to create the chart are similar to our prior histograms except we tell the geom_histogram to create a density histogram and we use the stat_function to scale a normal probability curve to the data provided.  The visualization allows you to eyeball how well the histogram fits a normal probability curve. 
+
+```{r normal-distribution-overlay}
+mdims_tidy %>% ggplot(aes(x = wgt))+ geom_histogram(aes(y = ..density..), binwidth = 5) + stat_function(fun = dnorm,color = "red",n=nrow(mdims_tidy), args = list(mean = mean(mdims_tidy$wgt), sd = sd(mdims_tidy$wgt))) + ggtitle("Weight Density Histogram for Male")
+
+fdims_tidy %>% ggplot(aes(x = wgt))+ geom_histogram(aes(y = ..density..),binwidth = 5) + stat_function(fun = dnorm,color = "red",n=nrow(fdims_tidy), args = list(mean = mean(fdims_tidy$wgt), sd = sd(fdims_tidy$wgt))) + ggtitle("Weight Density Histogram for Female")
+
+```
+
+## Based on the this plot, does it appear that the data follow a nearly normal distribution?
+Yes. This is correct. 
+
+## Normal probabilities
+
+Why should we care about data that's normally distributed?
+
+
+When data is normally (or nearly normally) distributed, you can make some very informative inferences.  Inference allows you to conclude something about a population with a quantifiable confidence from a relatively small sample of the population. Soliciting customer feedback often incurs an expense and many businesses must use a sample of customers to make a decision that will influence all customers. Once a random variable is approximately normal, we can answer all sorts of questions about that variable related to probability.  Stakeholders in analytics are rarely aware of how data is distributed.  You can help bring clarity by providing either numerical summaries (min, max, mean, median, IQR) or by creating a visual that illustrates how the data are distributed and if inferences based on the normal probability distribution are appropriate 
+
+* * *
+
+## On Your Own
+
+-   Now let's consider some of the other variables in the body dimensions data set.  You are given the code to create a histogram for several variables from the bdims dataset. Create the histogram by pressing the `play` button in the upper right corner of the code chunck and answer the questions.
+
+```{r basic-histogram}
+bdims %>% ggplot(aes(x = age)) + geom_histogram(binwidth = 5, color ="black", fill = "white")
+```
+
+Questions: 
+1.  What is the variable being visualized in the above chart? 
+      The age range. 
+
+2.  What is the bin width for this histogram?
+      The bin width is 5. 
+```{r histogram-US-population}
+#this code will build a dataframe for age distribution in the USA.
+age_brackets <- c("15-19","20-24","25-29","30-34","35-39","40-44","45-49","50-54","55-59","60-64","65-69","70-74","75-79")
+age_proportion <- c(0.082642922,0.086594911,0.092728421,0.089682835,0.084093577,0.078953642,0.078016835,0.080055428,0.083807553,0.08041076,0.069322734,0.05584583,0.037844553)
+population <- data.frame(age_brackets, age_proportion)
+ggplot(population, aes(x = age_brackets, y = age_proportion))+ geom_col() + xlab(NULL)
+```
+
+The chart above illustrates the distribution of age for the US population (and here we have an example of where a *sample* of US population was used to estimate the number of people in each age group)
+
+## Questions:
+1.  Based on the US population histogram and the bdims age histogram, would you conclude that the sample used to create the bdims data base was a random sample?  Why or why not?
+     yes, because the proportions do not line up as they should 
+
+2.  You are tasked with estimating the percentage of US population who might be interested in a new nutritional vitamin for people 50 to 80 years of age.  Using the US age population histogram what percentage of Americans between 15 and 80 would you estimate as your target market.
+      I believ that it would be about 65% because of the 70-74 and 75-79
